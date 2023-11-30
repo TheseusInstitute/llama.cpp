@@ -38,14 +38,21 @@
           # HACK(Green-Sky): nix currently has issues with cmake findcudatoolkit
           # see https://github.com/NixOS/nixpkgs/issues/224291
           # copied from jaxlib
-          name = "${cudaPackages.cudatoolkit.name}-merged";
-          paths = [
+          name = "cuda-12-merged";
+          paths = with pkgs.cudaPackages_12_2; [
             cudaPackages.cudatoolkit.lib
             cudaPackages.cudatoolkit.out
-          ] ++ lib.optionals (lib.versionOlder cudaPackages.cudatoolkit.version "11") [
-            # for some reason some of the required libs are in the targets/x86_64-linux
-            # directory; not sure why but this works around it
-            "${cudaPackages.cudatoolkit}/targets/${system}"
+            cuda_cudart
+            cuda_cupti
+            cuda_nvrtc
+            cuda_nvtx
+            nccl
+            libcublas
+            libcufft
+            libcurand
+            libcusparse
+            libcusolver
+            libnvjitlink
           ];
         };
         llama-python =
