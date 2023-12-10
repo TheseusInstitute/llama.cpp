@@ -34,16 +34,19 @@
         );
         pkgs = import nixpkgs { inherit system; config = { allowUnfree = true; }; };
         nativeBuildInputs = with pkgs; [ cmake ninja pkg-config ];
-        cudatoolkit_joined = with pkgs; symlinkJoin {
+        cudatoolkit_joined = { cudaPackages ? pkgs.cudaPackages_12_2 }: with pkgs; symlinkJoin {
           # HACK(Green-Sky): nix currently has issues with cmake findcudatoolkit
           # see https://github.com/NixOS/nixpkgs/issues/224291
           # copied from jaxlib
-          name = "cuda-12-merged";
-          paths = with pkgs.cudaPackages_12_2; [
-            cudaPackages.cudatoolkit.lib
-            cudaPackages.cudatoolkit.out
+          name = "cudatoolkit";
+          paths = with cudaPackages; [
+            cuda_cccl
+            cuda_cccl.dev
             cuda_cudart
             cuda_cupti
+            cuda_nvcc
+            cuda_nvcc.dev
+            cuda_nvprof
             cuda_nvrtc
             cuda_nvtx
             nccl
@@ -93,13 +96,17 @@
             "-DLLAMA_CLBLAST=ON"
           ];
         };
-        packages.cuda = pkgs.stdenv.mkDerivation {
+        packages.cuda = pkgs.stdenv.mkDerivation (self: {
           inherit name src meta postPatch nativeBuildInputs postInstall;
-          buildInputs = with pkgs; buildInputs ++ [ cudatoolkit_joined ];
+          buildInputs = with pkgs; buildInputs ++ [ self.passthru.cudaToolkit ];
           cmakeFlags = cmakeFlags ++ [
             "-DLLAMA_CUBLAS=ON"
           ];
-        };
+          passthru = {
+            cudaPackages = pkgs.cudaPackages_12_2;
+            cudaToolkit = cudatoolkit_joined { inherit (self.passthru) cudaPackages; };
+          };
+        });
         packages.rocm = pkgs.stdenv.mkDerivation {
           inherit name src meta postPatch nativeBuildInputs postInstall;
           buildInputs = with pkgs.rocmPackages; buildInputs ++ [ clr hipblas rocblas ];
